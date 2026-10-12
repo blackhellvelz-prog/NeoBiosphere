@@ -1,89 +1,80 @@
 package cn.mlus.neobiosphere.event;
 
-import cn.mlus.neobiosphere.carver.SphereCarver;
-import cn.mlus.neobiosphere.util.SphereUtil;
+import cn.mlus.neobiosphere.world.BiosphereWorlds;
+import cn.mlus.neobiosphere.world.SphereGeometry;
 import net.minecraft.core.BlockPos;
-import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
+/**
+ * If a player joins or respawns inside a sphere shell, move them onto solid ground inside the sphere.
+ * Port: runs on the server thread (the original searched the world from a new thread) and only in biosphere worlds.
+ */
 @EventBusSubscriber
 public class PlayerSpawnHandler {
     @SubscribeEvent
     public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        Player entity = event.getEntity();
-        Level level = entity.level();
-        new Thread(() -> teleportIntoSphere(level, entity)).start();
+        schedule(event.getEntity());
     }
 
     @SubscribeEvent
     public static void onPlayerRespawn(PlayerEvent.PlayerRespawnEvent event) {
-        Player entity = event.getEntity();
-        Level level = entity.level();
-        new Thread(() -> teleportIntoSphere(level, entity)).start();
+        schedule(event.getEntity());
     }
 
-    private static void teleportIntoSphere(Level level, Player entity) {
-        BlockPos currentPos = entity.blockPosition();
+    private static void schedule(net.minecraft.world.entity.player.Player entity) {
+        if (entity instanceof ServerPlayer player && player.level() instanceof ServerLevel level && BiosphereWorlds.isBiosphere(level)) {
+            level.getServer().execute(() -> teleportIntoSphere(level, player));
+        }
+    }
 
-        if(!SphereUtil.isSphereBlock(level.getBlockState(currentPos))) {
+    private static void teleportIntoSphere(ServerLevel level, ServerPlayer player) {
+        BlockPos current = player.blockPosition();
+        if (!SphereGeometry.isSphereBlock(level.getBlockState(current))) {
             return;
         }
-
-        int radius = SphereCarver.getSphereRadiusAt(currentPos.getX(), currentPos.getZ());
-        BlockPos targetPos = findValidPosition(level, currentPos, radius);
-
-        if (targetPos != null) {
-            level.getServer().execute(() -> entity.teleportTo(targetPos.getX() + 0.5, targetPos.getY() + 1.0, targetPos.getZ() + 0.5));
+        BlockPos target = findValidPosition(level, current, SphereGeometry.radiusAt(current.getX(), current.getZ()));
+        if (target != null) {
+            player.teleportTo(target.getX() + 0.5, target.getY() + 1.0, target.getZ() + 0.5);
         }
     }
 
     private static BlockPos findValidPosition(Level level, BlockPos center, int radius) {
-        int minY = level.getMinBuildHeight();
-        int maxY = level.getMaxBuildHeight() - 1;
-
+        int minY = level.getMinY();
+        int maxY = level.getMaxY() - 1;
         for (int y = center.getY(); y >= minY; y--) {
-            BlockPos checkPos = new BlockPos(center.getX(), y, center.getZ());
-            BlockState state = level.getBlockState(checkPos);
-
-            if (isSolidBlock(state,level,checkPos) && !SphereUtil.isSphereBlock(state)) {
-                if (hasEnoughSpace(level, checkPos.above())) {
-                    return checkPos.above();
-                }
+            BlockPos p = new BlockPos(center.getX(), y, center.getZ());
+            if (isGround(level, p) && hasEnoughSpace(level, p.above())) {
+                return p.above();
             }
         }
-
         for (int dx = -radius; dx <= radius; dx++) {
             for (int dz = -radius; dz <= radius; dz++) {
-                if (dx * dx + dz * dz <= radius * radius) {
-                    for (int y = maxY; y >= minY; y--) {
-                        BlockPos checkPos = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
-                        BlockState state = level.getBlockState(checkPos);
-
-                        if (isSolidBlock(state,level,checkPos) && !SphereUtil.isSphereBlock(state)) {
-                            if (hasEnoughSpace(level, checkPos.above())) {
-                                return checkPos.above();
-                            }
-                        }
+                if (dx * dx + dz * dz > radius * radius) {
+                    continue;
+                }
+                for (int y = maxY; y >= minY; y--) {
+                    BlockPos p = new BlockPos(center.getX() + dx, y, center.getZ() + dz);
+                    if (isGround(level, p) && hasEnoughSpace(level, p.above())) {
+                        return p.above();
                     }
                 }
             }
         }
-
         return null;
     }
 
-    private static boolean isSolidBlock(BlockState state, Level level, BlockPos pos) {
-        return state.isSolid() &&
-                state.isCollisionShapeFullBlock(level, pos) &&
-                !state.isAir();
+    private static boolean isGround(Level level, BlockPos pos) {
+        BlockState state = level.getBlockState(pos);
+        return state.isSolid() && state.isCollisionShapeFullBlock(level, pos) && !state.isAir() && !SphereGeometry.isSphereBlock(state);
     }
 
     private static boolean hasEnoughSpace(Level level, BlockPos pos) {
-        return level.getBlockState(pos).isAir() &&
-                level.getBlockState(pos.above()).isAir();
+        return level.getBlockState(pos).isAir() && level.getBlockState(pos.above()).isAir();
     }
 }

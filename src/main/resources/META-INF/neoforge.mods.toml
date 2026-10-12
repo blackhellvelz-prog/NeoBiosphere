@@ -1,0 +1,34 @@
+modLoader="javafml"
+loaderVersion="[1,)"
+license="GNU General Public License v3.0"
+issueTrackerURL="https://github.com/mlus-asuka/NeoBiosphere/issues"
+
+[[mods]]
+modId="neobiosphere"
+version="${file.jarVersion}"
+displayName="NeoBiosphere"
+logoFile="neobiosphere.png"
+authors="mlus (original); 26.2 port for the \"дум\" modpack"
+description='''
+Biospheres: grid-aligned glass spheres with terrain inside, connected by bridges, in an empty void.
+26.2 port: a separate "Biosphere" world type (choose it in Create World > World Type); other worlds and dimensions
+are not changed. Terrain, biomes and structures inside the spheres are those of the pack's overworld (Terralith,
+TerraBlender biomes, structure mods). Configure in config/NeoBiosphere.toml.
+'''
+
+[[mixins]]
+config="neobiosphere.mixins.json"
+
+[[dependencies.neobiosphere]]
+    modId="neoforge"
+    type="required"
+    versionRange="[26.2,)"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.neobiosphere]]
+    modId="minecraft"
+    type="required"
+    versionRange="[26.2,26.3)"
+    ordering="NONE"
+    side="BOTH"
