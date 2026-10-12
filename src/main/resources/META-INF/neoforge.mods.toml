@@ -8,8 +8,9 @@ modId="neobiosphere"
 version="${file.jarVersion}"
 displayName="NeoBiosphere"
 logoFile="neobiosphere.png"
-authors="mlus (original); 26.2 port for the \"дум\" modpack"
+authors="mlus-asuka (original); unofficial 26.2 port by blackhellvelz"
 description='''
+Unofficial port to Minecraft 26.2 (NeoForge) by blackhellvelz - not supported by the original authors. Source: https://github.com/blackhellvelz-prog/NeoBiosphere (branch port-26.2-dum).
 Biospheres: grid-aligned glass spheres with terrain inside, connected by bridges, in an empty void.
 26.2 port: a separate "Biosphere" world type (choose it in Create World > World Type); other worlds and dimensions
 are not changed. Terrain, biomes and structures inside the spheres are those of the pack's overworld (Terralith,
